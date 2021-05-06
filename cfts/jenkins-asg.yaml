@@ -1,0 +1,85 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: AWS Infrastructure Template - Creates Launch Template and Autoscaling group
+Parameters:
+  pAvailabilityZones:
+    Description: VPC subnet ids
+    Type: List<AWS::EC2::AvailabilityZone::Name>
+  pImageId:
+    Description: ec2 ami id 
+    Type: String 
+    Default: ami-0d5eff06f840b45e9
+  pInstanceType:
+    Description: ec2 instance type
+    Type: String 
+    Default: t2.micro
+  pInstanceProfile:
+    Description: ec2 instance type
+    Type: String
+  pKeyName:
+    Description: ec2 key pair
+    Type: 'AWS::EC2::KeyPair::KeyName'
+
+Resources: 
+  rSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable SSH/HTTP access 
+      GroupName: Jenkins-SG
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: 173.95.172.65/32
+      - IpProtocol: tcp
+        FromPort: 8080
+        ToPort: 8080
+        CidrIp: 0.0.0.0/0
+  rLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: MyLaunchTemplate
+      LaunchTemplateData:
+        #IamInstanceProfile: 
+        #  Name: !Ref pInstanceProfile
+        ImageId: !Ref pImageId
+        InstanceType: !Ref pInstanceType
+        KeyName: !Ref pKeyName
+        SecurityGroupIds:
+          - !GetAtt rSecurityGroup.GroupId
+        UserData:
+          Fn::Base64: 
+            !Sub |
+              #!/bin/bash -xe
+
+              # add jenkins repo
+              sudo yum update -y
+              sudo yum install wget -y 
+              sudo wget -O /etc/yum.repos.d/jenkins.repo https://pkg.jenkins.io/redhat-stable/jenkins.repo
+              sudo rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io.key
+
+              # intall java, jenkins 
+              sudo yum install java-1.8.0-openjdk -y
+              sudo yum install jenkins -y
+
+              # start & enable jenkins 
+              sudo systemctl start jenkins
+              sudo systemctl enable jenkins
+              sudo systemctl status jenkins
+
+              # install maven 
+              sudo yum install maven -y
+  rASG:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: myASG
+      MinSize: '1'
+      MaxSize: '1'
+      DesiredCapacity: '1'
+      LaunchTemplate:
+        LaunchTemplateId: !Ref rLaunchTemplate
+        Version: '1'
+      AvailabilityZones: !Ref pAvailabilityZones
+      Tags:
+        - Key: Name
+          Value: Jenkins-server
+          PropagateAtLaunch: "true"
