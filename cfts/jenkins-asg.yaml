@@ -12,14 +12,125 @@ Parameters:
     Description: ec2 instance type
     Type: String 
     Default: t2.micro
-  pInstanceProfile:
-    Description: ec2 instance type
-    Type: String
   pKeyName:
     Description: ec2 key pair
     Type: 'AWS::EC2::KeyPair::KeyName'
 
-Resources: 
+Resources:  
+  rRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      ManagedPolicyArns: 
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: S3_Bucket_Policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement: 
+              - Effect: Allow
+                Action:
+                  - 's3:DeleteObjectTagging'
+                  - 's3:CreateBucket'  
+                  - 's3:ListBucket'
+                  - 's3:ListAllMyBuckets'
+                  - 's3:DeleteBucketPolicy'   
+                  - 's3:GetBucketPolicy'
+                  - 's3:PutEncryptionConfiguration'
+                  - 's3:PutObject'
+                  - 's3:GetObject'
+                  - 's3:PutBucketTagging'
+                  - 's3:PutLifecycleConfiguration'
+                  - 's3:PutBucketPolicy'
+                  - 's3:PutObjectTagging'
+                  - 's3:DeleteObject'
+                  - 's3:DeleteBucket'
+                Resource: '*'
+        - PolicyName: KMS_Policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement: 
+              - Effect: Allow
+                Action:
+                  - 'kms:Decrypt'
+                  - 'kms:UntagResource'
+                  - 'kms:GenerateDataKeyPairWithoutPlaintext'
+                  - 'kms:ReEncryptFrom'
+                  - 'kms:TagResource'
+                  - 'kms:Encrypt'
+                  - 'kms:GetKeyRotationStatus'
+                  - 'kms:List*'
+                  - 'kms:RevokeGrant'
+                  - 'kms:GenerateDataKey'
+                  - 'kms:ReEncryptTo'
+                  - 'kms:DescribeKey'
+                  - 'kms:CreateKey'
+                  - 'kms:CreateGrant'
+                Resource: '*'
+        - PolicyName: EC2_Access_Policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement: 
+              - Effect: Allow
+                Action:
+                  - 'ec2:DetachVolume'
+                  - 'ec2:AuthorizeSecurityGroupEgress'
+                  - 'ec2:AuthorizeSecurityGroupIngress'
+                  - 'ec2:DetachNetworkInterface'
+                  - 'ec2:TerminateInstances'
+                  - 'ec2:RequestSpotInstances'
+                  - 'ec2:DeleteTags'
+                  - 'ec2:CreateTags'
+                  - 'ec2:Describe*'
+                  - 'ec2:DeleteNetworkInterface'
+                  - 'ec2:RunInstances'
+                  - 'ec2:ModifyImageAttribute'
+                  - 'ec2:CreateNetworkInterface'
+                  - 'ec2:CancelSpotInstanceRequests'
+                  - 'ec2:DeleteVolume'
+                  - 'ec2:CreateSecurityGroup'
+                  - 'ec2:RevokeSecurityGroupEgress'
+                  - 'ec2:DeleteSecurityGroup'
+                  - 'ec2:ModifyInstanceAttribute'
+                Resource: '*'
+        - PolicyName: Route53_Access_Policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement: 
+              - Effect: Allow
+                Action:
+                  - 'route53:CreateHostedZone'
+                  - 'route53:DisassociateVPCFromHostedZone'
+                  - 'route53:GetHostedZone'
+                  - 'route53:ListHostedZones'
+                  - 'route53:ChangeResourceRecordSets'
+                  - 'route53:CreateVPCAssociationAuthorization'
+                  - 'route53:ListHostedZonesByName'
+                  - 'route53:ListTagsForResource'
+                  - 'route53:DeleteVPCAssociationAuthorization'
+                  - 'route53:ListHostedZonesByVPC'
+                  - 'route53:ListResourceRecordSets'
+                  - 'route53:DeleteHostedZone'
+                  - 'route53:GetHostedZoneLimit'
+                  - 'route53:AssociateVPCWithHostedZone'
+                  - 'route53:GetHostedZoneCount'
+                  - 'route53:UpdateHostedZoneComment'
+                Resource: '*'
+  rInstanceProfile:
+    Type: 'AWS::IAM::InstanceProfile'
+    Properties:
+      Path: /
+      Roles:
+        - !Ref rRole
   rSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -39,8 +150,8 @@ Resources:
     Properties:
       LaunchTemplateName: MyLaunchTemplate
       LaunchTemplateData:
-        #IamInstanceProfile: 
-        #  Name: !Ref pInstanceProfile
+        IamInstanceProfile: 
+          Name: !Ref rInstanceProfile
         ImageId: !Ref pImageId
         InstanceType: !Ref pInstanceType
         KeyName: !Ref pKeyName
@@ -68,6 +179,17 @@ Resources:
 
               # install maven 
               sudo yum install maven -y
+
+              # install jq 
+              sudo yum install jq -y
+
+              # create route53 record 
+              hz_name=$(aws route53 list-hosted-zones |  jq '.HostedZones'[0] | jq -r '.Name')
+              hz_id=$(aws route53 list-hosted-zones |  jq '.HostedZones'[0] | jq -r '.Id' | cut -d '/' -f3)
+              public_ip=$(curl http://169.254.169.254/latest/meta-data/public-ipv4)
+              record_name="jenkins.${hz_name}"
+              echo $record_name
+              aws route53 change-resource-record-sets --hosted-zone-id "${hz_id}" --change-batch '{"Changes": [{"Action": "UPSERT","ResourceRecordSet": {"Name": "'"${record_name}"'","Type": "A","TTL": 60,"ResourceRecords": [{"Value": "'"${public_ip}"'"}]}}]}'
   rASG:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
