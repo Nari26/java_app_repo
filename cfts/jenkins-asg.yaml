@@ -13,7 +13,7 @@ Parameters:
     Description: ec2 instance type
     Type: String 
     Default: t2.micro
-  #pKeyName:
+  ##pKeyName:
   #  Description: ec2 key pair
   #  Type: 'AWS::EC2::KeyPair::KeyName'
   pAutomationRepo:
