@@ -4,6 +4,7 @@ Parameters:
   pAvailabilityZones:
     Description: VPC subnet ids
     Type: List<AWS::EC2::AvailabilityZone::Name>
+    Default: us-east-1a,us-east-1b
   pImageId:
     Description: ec2 ami id 
     Type: String 
@@ -12,9 +13,12 @@ Parameters:
     Description: ec2 instance type
     Type: String 
     Default: t2.micro
-  pKeyName:
-    Description: ec2 key pair
-    Type: 'AWS::EC2::KeyPair::KeyName'
+  #pKeyName:
+  #  Description: ec2 key pair
+  #  Type: 'AWS::EC2::KeyPair::KeyName'
+  pAutomationRepo:
+    Description: git repo path
+    Type: String
 
 Resources:  
   rRole:
@@ -137,10 +141,10 @@ Resources:
       GroupDescription: Enable SSH/HTTP access 
       GroupName: Jenkins-SG
       SecurityGroupIngress:
-      - IpProtocol: tcp
-        FromPort: 22
-        ToPort: 22
-        CidrIp: 173.95.172.65/32
+      #- IpProtocol: tcp
+      #  FromPort: 22
+      #  ToPort: 22
+      #  CidrIp: 173.95.172.65/32
       - IpProtocol: tcp
         FromPort: 8080
         ToPort: 8080
@@ -154,7 +158,7 @@ Resources:
           Name: !Ref rInstanceProfile
         ImageId: !Ref pImageId
         InstanceType: !Ref pInstanceType
-        KeyName: !Ref pKeyName
+        #KeyName: !Ref pKeyName
         SecurityGroupIds:
           - !GetAtt rSecurityGroup.GroupId
         UserData:
@@ -162,34 +166,14 @@ Resources:
             !Sub |
               #!/bin/bash -xe
 
-              # add jenkins repo
-              sudo yum update -y
-              sudo yum install wget -y 
-              sudo wget -O /etc/yum.repos.d/jenkins.repo https://pkg.jenkins.io/redhat-stable/jenkins.repo
-              sudo rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io.key
-
-              # intall java, jenkins 
-              sudo yum install java-1.8.0-openjdk -y
-              sudo yum install jenkins -y
-
-              # start & enable jenkins 
-              sudo systemctl start jenkins
-              sudo systemctl enable jenkins
-              sudo systemctl status jenkins
-
-              # install maven 
-              sudo yum install maven -y
-
               # install jq 
               sudo yum install jq -y
-
-              # create route53 record 
-              hz_name=$(aws route53 list-hosted-zones |  jq '.HostedZones'[0] | jq -r '.Name')
-              hz_id=$(aws route53 list-hosted-zones |  jq '.HostedZones'[0] | jq -r '.Id' | cut -d '/' -f3)
-              public_ip=$(curl http://169.254.169.254/latest/meta-data/public-ipv4)
-              record_name="jenkins.${hz_name}"
-              echo $record_name
-              aws route53 change-resource-record-sets --hosted-zone-id "${hz_id}" --change-batch '{"Changes": [{"Action": "UPSERT","ResourceRecordSet": {"Name": "'"${record_name}"'","Type": "A","TTL": 60,"ResourceRecords": [{"Value": "'"${public_ip}"'"}]}}]}'
+              sudo yum install git -y 
+              sudo git clone https://github.com/${pAutomationRepo}.git
+              cd java_app_repo/scripts 
+              sudo chmod +x jenkins.sh route53.sh 
+              sh jenkins.sh 
+              sh route53.sh
   rASG:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
@@ -204,4 +188,7 @@ Resources:
       Tags:
         - Key: Name
           Value: Jenkins-server
+          PropagateAtLaunch: "true"
+        - Key: Org
+          Value: nt-infra
           PropagateAtLaunch: "true"
