@@ -1,5 +1,6 @@
 #!/bin/bash
 
+sudo yum install jq -y
 hz_name=$(aws route53 list-hosted-zones |  jq '.HostedZones'[0] | jq -r '.Name')
 hz_id=$(aws route53 list-hosted-zones |  jq '.HostedZones'[0] | jq -r '.Id' | cut -d '/' -f3)
 
