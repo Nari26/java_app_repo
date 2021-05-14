@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: AWS Infrastructure Template - Creates EC2 instance, IAM, Security Group
+Description: AWS Infrastructure Template - Creates Launch Template and Autoscaling group
 Parameters:
   pAvailabilityZones:
     Description: availability zones
