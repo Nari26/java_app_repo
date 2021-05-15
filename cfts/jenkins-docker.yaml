@@ -19,6 +19,7 @@ Parameters:
   pAutomationPath:
     Description: automation path
     Type: String
+    NoEcho: true
   pJenkinsPassword:
     Description: jenkins user password
     Type: String
