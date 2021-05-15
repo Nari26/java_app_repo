@@ -24,6 +24,9 @@ Parameters:
     Description: jenkins user password
     Type: String
     NoEcho: true
+  pNotificationEmail:
+    Description: email for sns notifications
+    Type: String
 
 Resources:  
   rRole:
@@ -63,6 +66,19 @@ Resources:
                   - 's3:PutObjectTagging'
                   - 's3:DeleteObject'
                   - 's3:DeleteBucket'
+                Resource: '*'
+        - PolicyName: SNS_Bucket_Policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement: 
+              - Effect: Allow
+                Action:
+                  - 'sns:List*'
+                  - 'sns:Get*'
+                  - 'sns:Publish'
+                  - 'sns:Subscribe'
+                  - 'sns:Unsubscribe'
+                  - 'sns:ConfirmSubscription'
                 Resource: '*'
         - PolicyName: KMS_Policy
           PolicyDocument:
@@ -173,3 +189,13 @@ Resources:
             cd java_app_repo/jenkins 
             sudo chmod +x docker.sh
             sh docker.sh ${pJenkinsPassword}
+  rSNSTopic:
+    Type: AWS::SNS::Topic
+    Properties: 
+      TopicName: Jenkins-Notifications
+      Subscription: 
+        - Protocol: Email
+          Endpoint: !Ref pNotificationEmail
+      Tags: 
+        - Key: Name 
+          Value: Jenkins-Notifications
