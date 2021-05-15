@@ -1,7 +1,7 @@
 #!/bin/bash
 
 sudo yum install jq -y
-hz_name=$(aws route53 list-hosted-zones |  jq '.HostedZones'[0] | jq -r '.Name')
+hz_name=$(aws route53 list-hosted-zones |  jq '.HostedZones'[0] | jq -r '.Name' | sed 's/.$//')
 hz_id=$(aws route53 list-hosted-zones |  jq '.HostedZones'[0] | jq -r '.Id' | cut -d '/' -f3)
 
 public_ip=$(curl http://169.254.169.254/latest/meta-data/public-ipv4)
