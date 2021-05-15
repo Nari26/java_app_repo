@@ -19,14 +19,14 @@ Parameters:
   pAutomationPath:
     Description: automation path
     Type: String
-    NoEcho: true
   pJenkinsPassword:
     Description: jenkins user password
     Type: String
     NoEcho: true
-  pNotificationEmail:
-    Description: email for sns notifications
+  pNotificationNumber:
+    Description: number for sns notifications
     Type: String
+    NoEcho: true
 
 Resources:  
   rRole:
@@ -194,8 +194,8 @@ Resources:
     Properties: 
       TopicName: Jenkins-Notifications
       Subscription: 
-        - Protocol: Email
-          Endpoint: !Ref pNotificationEmail
+        - Protocol: SMS
+          Endpoint: !Ref pNotificationNumber
       Tags: 
         - Key: Name 
           Value: Jenkins-Notifications
