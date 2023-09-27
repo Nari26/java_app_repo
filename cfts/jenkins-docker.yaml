@@ -189,7 +189,8 @@ Resources:
             sudo git clone https://github.com/${pAutomationPath}.git
             cd java_app_repo/jenkins 
             sudo chmod +x docker.sh
-            sh docker.sh ${pJenkinsPassword}
+            sudo mkdir -p /opt/docker
+            sh -x docker.sh ${pJenkinsPassword} >> /opt/docker/logs
   rSNSTopic:
     Type: AWS::SNS::Topic
     Properties: 
