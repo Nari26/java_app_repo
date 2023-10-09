@@ -20,3 +20,12 @@ security:
 unclassified:
   location:
     url: http://server-url:8085/
+  globalLibraries:
+    libraries:
+      - name: "jenkins-lib"
+        retriever:
+          modernSCM:
+            scm:
+              git:
+                remote: "https://github.com/Nari26/SourceCode.git"
+  
